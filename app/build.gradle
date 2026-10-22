@@ -7,6 +7,15 @@ kotlin {
     jvmToolchain(21)
 }
 
+// 发行签名放在 local.properties（本机专用，不入库）。没有配置时回退 debug 签名，
+// 这样 clone 下来的人即使没有密钥也能正常 assembleRelease，只是产物不能用于分发。
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+def releaseStoreFile = localProps.getProperty('tabglass.storeFile')
+
 android {
     // 一个 APK 两个身份：模块本体（io.github.XQ.TabGlass）+ 设置界面（.settings 子包）。
     // 包名必须和 META-INF/xposed/java_init.list 里的入口类前缀一致，否则 LSPosed 不加载。
@@ -22,10 +31,24 @@ android {
         versionName "1.0.0"
     }
 
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            release {
+                storeFile = file(releaseStoreFile)
+                storePassword = localProps.getProperty('tabglass.storePassword')
+                keyAlias = localProps.getProperty('tabglass.keyAlias')
+                keyPassword = localProps.getProperty('tabglass.keyPassword')
+                // 走 AGP 默认签名方案：minSdk 33 只签 v2（Android 7+ 全部支持 v2）。
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             shrinkResources false
+            // 模块靠 META-INF 元数据与固定类名加载，暂不混淆，避免 hook 入口被改写。
+            signingConfig = releaseStoreFile != null ? signingConfigs.release : signingConfigs.debug
         }
         debug {
             minifyEnabled false

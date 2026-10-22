@@ -132,6 +132,29 @@ OUT_DIR=/d/Ai/Release ./build.sh
 产物是 debug 签名，约 32MB，大头是 Compose + Miuix 运行时——这份 dex 会随模块注入微信、
 QQ 进程，懒加载，冷启动影响不大。
 
+### 发行版
+
+```bash
+./build.sh release                              # 产物在 app/build/outputs/apk/release/
+OUT_DIR=/d/Ai/TabGlass-dist ./build.sh release  # 顺便复制成 TabGlass-vX.Y.Z.apk
+```
+
+发行版约 23MB（比调试版少了调试信息）。签名密钥在仓库外，由 `local.properties` 指定：
+
+```properties
+tabglass.storeFile=D:/Ai/Keystore/tabglass-release.jks
+tabglass.storePassword=…
+tabglass.keyAlias=tabglass
+tabglass.keyPassword=…
+```
+
+`local.properties` 已被忽略，密钥本身也不在仓库里；没有这段配置时 `release` 会回退到
+debug 签名，产物只能自用、不能发布。
+
+> ⚠️ **发行版与调试版签名不同，同包名不能互相覆盖安装**：换装前先卸载，装完在 LSPosed
+> 里重新启用并勾选作用域（模块列表只在开机时重扫）。另外请备份那个 `.jks`——密钥丢了以后
+> 只能换包名或让所有人卸载重装，无法再覆盖升级。
+
 | 依赖 | 来源 |
 |---|---|
 | Android SDK 37 / build-tools 37.0.0 | `local.properties` 的 `sdk.dir`，或 `ANDROID_HOME` |
