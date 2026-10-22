@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        一个 APK 两个身份：桌面上的设置界面（本 Activity），和 LSPosed 注入微信 / QQ
+        进程的模块本体（META-INF/xposed + hasCode）。参数从界面写进本应用自己的
+        SharedPreferences，再由下面的 provider 只读地交给注入侧。
+
+        状态卡要显示两个宿主的版本。Android 11 之后查询别的应用需要在清单里声明
+        可见性，否则 getPackageInfo 会直接抛 NameNotFoundException。
+    -->
+    <queries>
+        <package android:name="com.tencent.mm" />
+        <package android:name="com.tencent.mobileqq" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:hasCode="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.TabGlassSettings">
+
+        <activity
+            android:name=".settings.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.TabGlassSettings">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            只读的参数通道：模块在微信 / QQ 进程里调用 call("get") 读取这里的值。
+            写入只发生在本应用自己的 SharedPreferences，导出方不需要写权限，
+            也不向调用方提供任何写入口。
+        -->
+        <provider
+            android:name=".settings.data.SettingsProvider"
+            android:authorities="io.github.XQ.TabGlass.prefs"
+            android:exported="true" />
+    </application>
+
+</manifest>

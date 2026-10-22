@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 胶囊轮廓 -->
+    <path
+        android:fillColor="#1B1B1B"
+        android:pathData="M31,44 L77,44 A10,10 0 0 1 77,64 L31,64 A10,10 0 0 1 31,44 Z" />
+    <!-- 选中的液滴 -->
+    <path
+        android:fillColor="#F7F8FA"
+        android:pathData="M38,48 L50,48 A6,6 0 0 1 50,60 L38,60 A6,6 0 0 1 38,48 Z" />
+</vector>
