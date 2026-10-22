@@ -92,6 +92,7 @@ QQ 同一个安装包里带了新旧两套底栏，服务端开关 `tab_layout_9
 .
 ├── app/                                # 唯一的应用模块：注入侧与界面同包
 │   ├── build.gradle
+│   ├── release-key.jks                 # 签名密钥，本机文件、不入库
 │   └── src/main/
 │       ├── AndroidManifest.xml
 │       ├── java/io/github/XQ/TabGlass/
@@ -106,6 +107,7 @@ QQ 同一个安装包里带了新旧两套底栏，服务端开关 `tab_layout_9
 ├── gradle/ gradlew gradlew.bat         # Gradle wrapper
 ├── build.gradle settings.gradle gradle.properties
 ├── build.sh                            # 一条命令出 APK
+├── local.properties                    # SDK 路径与签名密码，本机文件、不入库
 └── README.md LICENSE
 ```
 
@@ -114,46 +116,39 @@ QQ 同一个安装包里带了新旧两套底栏，服务端开关 `tab_layout_9
 ## 🛠️ 构建
 
 模块本体是纯 Java，但界面是 Kotlin + Compose + Miuix，所以整包构建走 Gradle。`build.sh`
-只是它的一层薄包装，产物留在 Gradle 自己的输出目录，仓库里不存任何 APK：
+只是它的一层薄包装，产物就在 Gradle 自己的输出目录，不往别处复制：
 
 ```bash
-./build.sh
-# 等价于 ./gradlew :app:assembleDebug
-# 产物：app/build/outputs/apk/debug/app-debug.apk
+./build.sh              # 调试版
+./build.sh release      # 发行版
 ```
 
-要把产物另外拷到某个目录（比如集中放 APK 的地方），给一个 `OUT_DIR`：
+| 变体 | 产物 |
+|---|---|
+| debug | `app/build/outputs/apk/debug/app-debug.apk`（约 32MB） |
+| release | `app/build/outputs/apk/release/app-release.apk`（约 23MB，少了调试信息） |
 
-```bash
-OUT_DIR=/d/Ai/Release ./build.sh
-# 额外产出：/d/Ai/Release/TabGlass-v1.0.0.apk
-```
+体积大头是 Compose + Miuix 运行时——这份 dex 会随模块注入微信、QQ 进程，懒加载，冷启动
+影响不大。
 
-产物是 debug 签名，约 32MB，大头是 Compose + Miuix 运行时——这份 dex 会随模块注入微信、
-QQ 进程，懒加载，冷启动影响不大。
+### 签名
 
-### 发行版
-
-```bash
-./build.sh release                              # 产物在 app/build/outputs/apk/release/
-OUT_DIR=/d/Ai/TabGlass-dist ./build.sh release  # 顺便复制成 TabGlass-vX.Y.Z.apk
-```
-
-发行版约 23MB（比调试版少了调试信息）。签名密钥在仓库外，由 `local.properties` 指定：
+签名方式与同作者的背屏模块一致：密钥库固定放 `app/release-key.jks`（`*.jks` 已被忽略），
+密码只写本机的 `local.properties`，也可以用同名环境变量：
 
 ```properties
-tabglass.storeFile=D:/Ai/Keystore/tabglass-release.jks
-tabglass.storePassword=…
-tabglass.keyAlias=tabglass
-tabglass.keyPassword=…
+RELEASE_STORE_FILE=release-key.jks
+RELEASE_KEY_ALIAS=tabglass
+RELEASE_STORE_PASSWORD=…
+RELEASE_KEY_PASSWORD=…
 ```
 
-`local.properties` 已被忽略，密钥本身也不在仓库里；没有这段配置时 `release` 会回退到
-debug 签名，产物只能自用、不能发布。
+`local.properties` 与 `.jks` 都不入库；缺这段配置时两个变体都退回 debug 签名，clone 下来
+照样能构建，只是产物不能用于分发。
 
-> ⚠️ **发行版与调试版签名不同，同包名不能互相覆盖安装**：换装前先卸载，装完在 LSPosed
-> 里重新启用并勾选作用域（模块列表只在开机时重扫）。另外请备份那个 `.jks`——密钥丢了以后
-> 只能换包名或让所有人卸载重装，无法再覆盖升级。
+> **debug 与 release 用同一把钥匙**，可以互相覆盖安装，换变体不用先卸载。
+> 换包名或换签名时才需要卸载并重启——LSPosed 只在开机时重扫模块列表。
+> 那个 `.jks` 请自行备份：密钥丢了就只能换包名，或者让所有人卸载重装，无法再覆盖升级。
 
 | 依赖 | 来源 |
 |---|---|
