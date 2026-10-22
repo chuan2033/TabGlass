@@ -114,11 +114,19 @@ QQ 同一个安装包里带了新旧两套底栏，服务端开关 `tab_layout_9
 ## 🛠️ 构建
 
 模块本体是纯 Java，但界面是 Kotlin + Compose + Miuix，所以整包构建走 Gradle。`build.sh`
-只是它的一层薄包装，产物按版本号拷到根目录：
+只是它的一层薄包装，产物留在 Gradle 自己的输出目录，仓库里不存任何 APK：
 
 ```bash
 ./build.sh
-# 等价于 ./gradlew :app:assembleDebug，输出 TabGlass-vX.Y.Z.apk
+# 等价于 ./gradlew :app:assembleDebug
+# 产物：app/build/outputs/apk/debug/app-debug.apk
+```
+
+要把产物另外拷到某个目录（比如集中放 APK 的地方），给一个 `OUT_DIR`：
+
+```bash
+OUT_DIR=/d/Ai/Release ./build.sh
+# 额外产出：/d/Ai/Release/TabGlass-v1.0.0.apk
 ```
 
 产物是 debug 签名，约 32MB，大头是 Compose + Miuix 运行时——这份 dex 会随模块注入微信、
