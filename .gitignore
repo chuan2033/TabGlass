@@ -1,9 +1,21 @@
+# 构建产物
 build/
-tools/
-tools
+app/build/
 *.apk
 *.idsig
 *.keystore
 *.jks
+
+# Gradle / Kotlin / IDE
+.gradle/
+.kotlin/
+.tmp/
+.idea/
+*.iml
+
+# 本机配置
+local.properties
+
+# 工具与工作记录
 .workbuddy/
 .tmp*

@@ -59,7 +59,7 @@ dependencies {
     implementation 'top.yukonga.miuix.kmp:miuix-icons-android:0.9.4'
     implementation 'top.yukonga.miuix.kmp:miuix-blur-android:0.9.4'
 
-    // libxposed API 102：只在编译期需要，运行时由框架提供。
-    // tools/xapi/classes.jar 由 setup-tools.sh 从 api-102.0.0.aar 解出来。
-    compileOnly files('../../tools/xapi/classes.jar')
+    // libxposed API 102（Apache-2.0）：只在编译期需要，运行时由框架提供。
+    // 官方没有发布到 Maven，jar 随仓库放在 libs/ 下，clone 后即可离线构建。
+    compileOnly files('../libs/xposed-api-102.jar')
 }

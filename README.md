@@ -35,10 +35,25 @@
 `CardBlock` 分组、悬浮玻璃底栏。它调五个几何参数（宽度、高度、底部间距、液滴内缩、列最小
 留白），改完切回微信或 QQ 即生效，不用重装。
 
+界面分三页：主页看模块状态与主题、预览页调参数并即时看到比例、关于页看版本与许可。
+
 参数由界面写进本应用自己的 SharedPreferences，再经只读 `ContentProvider`
 （`io.github.XQ.TabGlass.prefs`）交给注入侧——模块代码跑在微信进程里，
 `getSharedPreferences` 拿到的是微信的存储，读不到自己 App 的。模块读到之后会写回宿主
-自己的偏好文件作为兜底。细节见 [`settings-app/README.md`](settings-app/README.md)。
+自己的偏好文件作为兜底，所以设置界面被系统强制停止时也不会掉回内置默认。改完切回宿主，
+模块在主界面 `onResume` 重新读取并就地重算，不需要重启微信或 QQ。
+
+| 键 | 名称 | 范围 | 默认 |
+|---|---|---|---|
+| `pillWidthPercent` | 底栏宽度（占屏宽百分比） | 60–100 | 80 |
+| `pillHeightDp` | 底栏高度 | 56–88 | 69 |
+| `barOffsetDp` | 底栏下边缘到屏幕底部的距离 | 4–32 | 12 |
+| `rowPadDp` | 液滴四边内缩量，同时是 tab 行左右内边距 | 2–12 | 4 |
+| `columnPadDp` | 单列内容的左右最小余量 | 24–96 | 50 |
+
+界面的组件与间距沿用背屏模块：`BlurredBar` + `TopAppBar(largeTitle)` 做顶栏，
+`SmallTitle` + `CardBlock`（圆角 16dp、`surfaceContainer`）做分组，底部是自绘的悬浮玻璃
+底栏 `FloatingBottomBar`，间距常量集中在 `ui/theme/UiTokens.kt`。
 
 ## 🔍 工作原理
 
@@ -54,7 +69,7 @@ Hook Instrumentation.callActivityOnResume
             └─ 应用原生底栏（背景已清空）
 ```
 
-应用相关的部分全在 [`HostApp`](settings-app/app/src/main/java/io/github/XQ/TabGlass/HostApp.java) 里：
+应用相关的部分全在 [`HostApp`](app/src/main/java/io/github/XQ/TabGlass/HostApp.java) 里：
 
 | | 微信 | QQ |
 |---|---|---|
@@ -71,39 +86,62 @@ QQ 同一个安装包里带了新旧两套底栏，服务端开关 `tab_layout_9
 
 日志 tag：`LiquidGlass`
 
+## 📁 项目结构
+
+```
+.
+├── app/                                # 唯一的应用模块：注入侧与界面同包
+│   ├── build.gradle
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       ├── java/io/github/XQ/TabGlass/
+│       │   ├── LiquidGlassModule.java  # 模块入口（java_init.list 指向它）
+│       │   ├── LiquidGlassInstaller.java
+│       │   ├── HostApp.java            # 微信 / QQ 的类名、资源差异表
+│       │   ├── GlassConfig.java        # 参数读取：provider → 宿主偏好兜底
+│       │   └── settings/               # 界面：MainActivity、data/、ui/
+│       ├── res/                        # 图标、主题、文案
+│       └── resources/META-INF/xposed/  # LSPosed 元数据，打包后落在 APK 根
+├── libs/xposed-api-102.jar             # 编译期依赖，运行时由框架提供
+├── gradle/ gradlew gradlew.bat         # Gradle wrapper
+├── build.gradle settings.gradle gradle.properties
+├── build.sh                            # 一条命令出 APK
+└── README.md LICENSE
+```
+
+没有第二份源码：模块的 Java 与界面的 Kotlin 在同一个 `app` 模块里，改完一起编译、一起装。
+
 ## 🛠️ 构建
 
-模块本体是纯 Java，但设置界面是 Kotlin + Compose + Miuix，所以构建走 Gradle。`build.sh`
-现在只是它的一层薄包装——老的 javac + d8 + aapt2 手工链跑不了 Compose 编译器：
+模块本体是纯 Java，但界面是 Kotlin + Compose + Miuix，所以整包构建走 Gradle。`build.sh`
+只是它的一层薄包装，产物按版本号拷到根目录：
 
 ```bash
 ./build.sh
+# 等价于 ./gradlew :app:assembleDebug，输出 TabGlass-vX.Y.Z.apk
 ```
 
-等价于 `cd settings-app && ./gradlew :app:assembleDebug`，再把产物拷到根目录，输出
-`TabGlass-vX.Y.Z.apk`（debug 签名，约 32MB，大头是 Compose + Miuix 运行时）。
+产物是 debug 签名，约 32MB，大头是 Compose + Miuix 运行时——这份 dex 会随模块注入微信、
+QQ 进程，懒加载，冷启动影响不大。
 
 | 依赖 | 来源 |
 |---|---|
-| Android SDK 37 / build-tools 37.0.0 | `settings-app/local.properties` 的 `sdk.dir`，或 `ANDROID_HOME` |
+| Android SDK 37 / build-tools 37.0.0 | `local.properties` 的 `sdk.dir`，或 `ANDROID_HOME` |
 | JDK 21 | `JAVA_HOME`，否则用 PATH 上的 |
 | AGP 9.2.1 / Kotlin 2.3.21 / Miuix 0.9.4 | Gradle 从 Maven 取 |
-| libxposed `api-102` | `tools/xapi/classes.jar`，`compileOnly`；`./setup-tools.sh` 从 Maven 的 `api-102.0.0.aar` 解出来 |
+| libxposed `api-102` | `libs/xposed-api-102.jar`（Apache-2.0），`compileOnly`，随仓库分发 |
 
 **最低系统是 Android 13（API 33）**，由 `miuix-blur` 的下限决定——模块单独编译时曾是 26，
 合进界面之后 Android 12L 及以下装不上。
 
-### 可调参数
+### 源码里的常量
+
+五个几何参数在界面上可调，剩下这些是写死的，改要动代码：
 
 | 参数 | 位置 | 默认 |
 |---|---|---|
 | 折射高度 / 边缘带 | `GlassTuner.onSize()` | 24dp（同 KernelSU `lens()`） |
 | 模糊强度 | `tuneGlass()` | 4dp（同 KernelSU `blur()`） |
-| pill 宽度（占屏宽百分比，列宽均分） | `GlassConfig.pillWidthPercent` | 80%（0 = 回归上游按内容收缩） |
-| 每列最小留白（只作下限保护） | `GlassConfig.columnPadDp` | 50dp（上游 32） |
-| 行左右内边距（同时是液滴四边内缩量） | `GlassConfig.rowPadDp` | 4dp（上游 4） |
-| pill 高度（两家统一） | `GlassConfig.pillHeightDp` | 69dp（原生栏更高时不缩小） |
-| 底部抬升 | `GlassConfig.barOffsetDp` | 12dp |
 | 按压放大 / 焦点放大 | `DropletDragController` / `DropletPanel` | 78/56 · 1.1 |
 | 拖拽形变上限 | `DropletDragController.STRETCH_LIMIT` | 0.2 |
 

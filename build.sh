@@ -1,27 +1,24 @@
 #!/usr/bin/env bash
-# Build TabGlass — one APK that is both an LSPosed module for WeChat / QQ
-# (libxposed api 102) and the settings UI you launch from the home screen.
+# 构建 TabGlass —— 一个 APK 同时是 LSPosed 模块（注入微信 / QQ，libxposed api 102）
+# 和桌面上的设置界面。
 #
-# The module body is plain Java, but the UI is Kotlin + Compose + Miuix, so the
-# build has to go through Gradle now; the old hand-rolled javac + d8 + aapt2
-# chain cannot run the Compose compiler. This script stays as the single entry
-# point so `./build.sh` still does the right thing.
+# 模块本体是纯 Java，但界面是 Kotlin + Compose + Miuix，所以构建走 Gradle；
+# 这个脚本只是给出一条命令、并把产物按版本号命名到仓库根目录。
 #
-# Requirements: JDK 21 on PATH or JAVA_HOME, and the Android SDK located by
-# Gradle (local.properties `sdk.dir` or ANDROID_HOME).
-#   GRADLE_USER_HOME   Gradle cache, defaults to the machine's own
-#   VERSION            override the version stamped into the file name
+# 环境要求：JDK 21（PATH 或 JAVA_HOME），Android SDK 由 Gradle 定位
+# （local.properties 的 sdk.dir 或 ANDROID_HOME）。
+#   GRADLE_USER_HOME   Gradle 缓存目录，默认用本机 ~/.gradle
+#   VERSION            覆盖写进文件名的版本号
 set -euo pipefail
 
 PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GRADLE="${PROJ}/settings-app"
 SDK_GRADLE="${GRADLE_USER_HOME:-${HOME}/.gradle}"
 
-cd "$GRADLE"
+cd "$PROJ"
 GRADLE_USER_HOME="$SDK_GRADLE" ./gradlew --quiet :app:assembleDebug
 
-APK="$GRADLE/app/build/outputs/apk/debug/app-debug.apk"
-VERSION="${VERSION:-$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' "$GRADLE/app/build.gradle")}"
+APK="$PROJ/app/build/outputs/apk/debug/app-debug.apk"
+VERSION="${VERSION:-$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' "$PROJ/app/build.gradle")}"
 FINAL="$PROJ/TabGlass-v$VERSION.apk"
 
 cp "$APK" "$FINAL"
