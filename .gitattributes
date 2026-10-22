@@ -1,3 +1,4 @@
 # 让 shell 脚本在任意平台都保持 LF，避免 clone 到 Linux 后无法执行
 gradlew text eol=lf
 *.sh text eol=lf
+*.pro text eol=lf
