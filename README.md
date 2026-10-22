@@ -123,13 +123,21 @@ QQ 同一个安装包里带了新旧两套底栏，服务端开关 `tab_layout_9
 ./build.sh release      # 发行版
 ```
 
-| 变体 | 产物 |
-|---|---|
-| debug | `app/build/outputs/apk/debug/app-debug.apk`（约 32MB） |
-| release | `app/build/outputs/apk/release/app-release.apk`（约 23MB，少了调试信息） |
+| 变体 | 产物 | 体积 |
+|---|---|---|
+| debug | `app/build/outputs/apk/debug/app-debug.apk` | 约 32MB |
+| release | `app/build/outputs/apk/release/app-release.apk` | 约 2.5MB |
 
-体积大头是 Compose + Miuix 运行时——这份 dex 会随模块注入微信、QQ 进程，懒加载，冷启动
-影响不大。
+两个变体的体积差 12 倍，差别不在功能，而在 **R8**：release 开了 `minifyEnabled` +
+`shrinkResources`（规则见 `app/proguard-rules.pro`），把没用到的 Compose / Miuix 组件、
+未引用的资源和调试信息全部裁掉；debug 要保留完整符号以便调试，所以 32MB。
+
+模块自己只有 252 个类（占未裁剪 dex 的 1.7%），剩下 98% 都是 Compose 运行时、Miuix、
+coroutines 这些库——它们靠 R8 才瘦得下来。规则里 `io.github.XQ.TabGlass.**` 整包 keep，
+因为 LSPosed 按 `java_init.list` 的类名反射加载入口，同时 hook 侧要拿宿主类名做匹配。
+混淆后的崩溃栈要配 `app/build/outputs/mapping/release/mapping.txt` 才能还原。
+
+这份 dex 会随模块注入微信、QQ 进程，懒加载，冷启动影响不大。
 
 ### 签名
 
